@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Beijing Multimodal Transportation Optimization System</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f0f2f5;--surface:#fff;--surface2:#f7f8fa;--border:#e4e7ec;
+  --text:#1a1d23;--text2:#6b7280;--text3:#9ca3af;
+  --blue:#2563eb;--blue-light:#eff6ff;--blue-dark:#1d4ed8;
+  --green:#059669;--green-light:#ecfdf5;
+  --orange:#ea580c;--orange-light:#fff7ed;
+  --red:#dc2626;--red-light:#fef2f2;
+  --purple:#7c3aed;--purple-light:#f5f3ff;
+  --navy:#1e3a5f;--shadow:0 1px 3px rgba(0,0,0,.1),0 1px 2px rgba(0,0,0,.06);
+  --shadow-md:0 4px 6px rgba(0,0,0,.07),0 2px 4px rgba(0,0,0,.05);
+  --radius:8px;--radius-sm:5px;--radius-lg:12px
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+  background:var(--bg);color:var(--text);font-size:14px;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── Topbar ── */
+.topbar{height:52px;background:var(--navy);display:flex;align-items:center;
+  padding:0 20px;gap:12px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.topbar-logo{font-size:18px}
+.topbar-title{color:#fff;font-size:15px;font-weight:600;flex:1}
+.topbar-sub{color:#94a3b8;font-size:12px}
+.topbar-time{color:#cbd5e1;font-size:12px;font-family:monospace}
+.status-dot{width:7px;height:7px;border-radius:50%;background:#22c55e;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── Layout ── */
+.layout{display:flex;flex:1;overflow:hidden}
+
+/* ── Sidebar ── */
+.sidebar{width:300px;flex-shrink:0;background:var(--surface);
+  border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.sidebar-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.stab{flex:1;padding:10px 4px;font-size:12px;font-weight:500;color:var(--text2);
+  border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;transition:.15s}
+.stab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.sidebar-body{flex:1;overflow-y:auto;padding:14px}
+
+/* ── Controls ── */
+.ctrl-group{margin-bottom:16px}
+.ctrl-label{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;
+  letter-spacing:.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.ctrl-label .dot{width:6px;height:6px;border-radius:50%;background:var(--blue)}
+select,input[type=number]{width:100%;padding:7px 10px;border:1px solid var(--border);
+  border-radius:var(--radius-sm);background:var(--surface2);color:var(--text);font-size:13px;outline:none}
+select:focus,input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.range-wrap{display:flex;flex-direction:column;gap:4px}
+input[type=range]{width:100%;accent-color:var(--blue)}
+.range-labels{display:flex;justify-content:space-between;font-size:11px;color:var(--text3)}
+.range-val{font-weight:600;color:var(--text);font-size:13px}
+
+/* ── Preset buttons ── */
+.preset-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.preset-btn{padding:6px 4px;font-size:11px;border:1px solid var(--border);border-radius:var(--radius-sm);
+  background:var(--surface2);cursor:pointer;text-align:center;transition:.15s;line-height:1.3}
+.preset-btn:hover{border-color:var(--blue);background:var(--blue-light);color:var(--blue)}
+.preset-btn.active{border-color:var(--blue);background:var(--blue);color:#fff}
+
+/* ── Node list ── */
+.node-list{display:flex;flex-direction:column;gap:4px}
+.node-item{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:var(--radius-sm);
+  border:1px solid var(--border);cursor:pointer;transition:.15s;background:var(--surface2)}
+.node-item:hover{border-color:var(--blue);background:var(--blue-light)}
+.node-item.selected{border-color:var(--blue);background:var(--blue-light)}
+.node-item.disabled{opacity:.4;cursor:default}
+.node-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.node-info{flex:1;min-width:0}
+.node-name{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node-meta{font-size:11px;color:var(--text3)}
+.node-demand{font-size:11px;font-weight:600;color:var(--text2);flex-shrink:0}
+.node-del{width:20px;height:20px;border:none;background:none;cursor:pointer;color:var(--text3);
+  font-size:14px;border-radius:3px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.node-del:hover{background:var(--red-light);color:var(--red)}
+
+.add-node-form{background:var(--surface2);border:1px dashed var(--border);border-radius:var(--radius);
+  padding:12px;display:flex;flex-direction:column;gap:8px}
+.add-node-form .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.add-node-form label{font-size:11px;color:var(--text2);margin-bottom:3px;display:block}
+.btn-add{width:100%;padding:8px;background:var(--blue);color:#fff;border:none;
+  border-radius:var(--radius-sm);cursor:pointer;font-size:13px;font-weight:500;transition:.15s}
+.btn-add:hover{background:var(--blue-dark)}
+.btn-add:disabled{background:var(--text3);cursor:default}
+.add-node-form label{display:flex;justify-content:space-between;align-items:center}
+.range-hint{font-size:10px;color:var(--text3);font-weight:400;background:var(--bg);
+  padding:1px 5px;border-radius:3px;border:1px solid var(--border);font-family:monospace}
+.coord-feedback{font-size:11px;margin-top:3px;min-height:14px;transition:.2s}
+.coord-feedback.ok{color:var(--green)}
+.coord-feedback.err{color:var(--red)}
+input.input-ok{border-color:var(--green)!important;box-shadow:0 0 0 2px rgba(5,150,105,.1)!important}
+input.input-err{border-color:var(--red)!important;box-shadow:0 0 0 2px rgba(220,38,38,.1)!important}
+
+/* ── History ── */
+.hist-item{padding:9px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);
+  margin-bottom:6px;cursor:pointer;transition:.15s;background:var(--surface2)}
+.hist-item:hover{border-color:var(--blue);background:var(--blue-light)}
+.hist-head{display:flex;justify-content:space-between;margin-bottom:4px}
+.hist-scenario{font-size:12px;font-weight:500}
+.hist-time{font-size:11px;color:var(--text3)}
+.hist-meta{display:flex;gap:10px;font-size:11px;color:var(--text2)}
+.badge{padding:2px 7px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-m1{background:var(--blue-light);color:var(--blue)}
+.badge-m4{background:var(--purple-light);color:var(--purple)}
+.badge-m2{background:var(--orange-light);color:var(--orange)}
+
+/* ── Map area ── */
+.map-area{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.map-toolbar{height:44px;background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;padding:0 16px;flex-shrink:0}
+.map-toolbar-info{flex:1;font-size:12px;color:var(--text2)}
+.btn-calc{padding:7px 18px;background:var(--blue);color:#fff;border:none;border-radius:var(--radius-sm);
+  cursor:pointer;font-size:13px;font-weight:600;transition:.15s;display:flex;align-items:center;gap:6px}
+.btn-calc:hover{background:var(--blue-dark)}
+.btn-calc:disabled{background:var(--text3);cursor:default}
+.btn-clear{padding:7px 12px;background:var(--surface2);color:var(--text2);border:1px solid var(--border);
+  border-radius:var(--radius-sm);cursor:pointer;font-size:12px;transition:.15s}
+.btn-clear:hover{border-color:var(--red);color:var(--red);background:var(--red-light)}
+.map-canvas-wrap{flex:1;position:relative;overflow:hidden;background:#eaf0f8}
+canvas{display:block;width:100%;height:100%}
+.map-hint{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
+  background:rgba(30,58,95,.85);color:#fff;padding:7px 16px;border-radius:20px;
+  font-size:12px;pointer-events:none;transition:.3s;white-space:nowrap}
+.map-legend{position:absolute;bottom:12px;right:12px;background:rgba(255,255,255,.92);
+  padding:10px 12px;border-radius:var(--radius);box-shadow:var(--shadow);font-size:11px}
+.leg-row{display:flex;align-items:center;gap:7px;margin-bottom:4px;color:var(--text2)}
+.leg-row:last-child{margin-bottom:0}
+.leg-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.leg-line{width:18px;height:2px;flex-shrink:0}
+.leg-dash{width:18px;height:0;border-top:2px dashed;flex-shrink:0}
+
+/* ── Result panel ── */
+.result-panel{width:280px;flex-shrink:0;background:var(--surface);
+  border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.result-header{padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.result-header h3{font-size:14px;font-weight:600;margin-bottom:2px}
+.result-header p{font-size:12px;color:var(--text2)}
+.result-body{flex:1;overflow-y:auto;padding:14px}
+
+/* ── Model cards ── */
+.model-cards{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.model-card{border:1.5px solid var(--border);border-radius:var(--radius);padding:11px 13px;
+  transition:.15s;position:relative;overflow:hidden}
+.model-card.best{border-color:var(--green);background:var(--green-light)}
+.model-card.best::before{content:'Best';position:absolute;top:0;right:0;
+  background:var(--green);color:#fff;font-size:10px;font-weight:700;
+  padding:2px 8px;border-bottom-left-radius:6px}
+.model-card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.model-name{font-size:13px;font-weight:600}
+.model-cost{font-size:16px;font-weight:700}
+.model-cost.best-cost{color:var(--green)}
+.model-cost.bad-cost{color:var(--red)}
+.model-meta{display:flex;gap:10px;font-size:11px;color:var(--text2)}
+.cost-bar-wrap{height:4px;background:var(--bg);border-radius:2px;margin-top:7px;overflow:hidden}
+.cost-bar{height:100%;border-radius:2px;transition:width .5s ease}
+
+/* ── Node detail ── */
+.node-result-list{display:flex;flex-direction:column;gap:5px}
+.nr-item{padding:8px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);font-size:12px}
+.nr-item.drone{border-color:var(--orange);background:var(--orange-light)}
+.nr-item.vehicle{border-color:var(--blue);background:var(--blue-light)}
+.nr-head{display:flex;justify-content:space-between;margin-bottom:3px}
+.nr-name{font-weight:600}
+.nr-mode{font-size:11px;font-weight:700;padding:1px 6px;border-radius:10px}
+.nr-mode.drone{background:var(--orange);color:#fff}
+.nr-mode.vehicle{background:var(--blue);color:#fff}
+.nr-detail{color:var(--text2);line-height:1.6}
+
+/* ── Stats ── */
+.stat-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.stat-box{background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius);padding:10px 12px}
+.stat-label{font-size:11px;color:var(--text2);margin-bottom:3px}
+.stat-val{font-size:20px;font-weight:700}
+.stat-val.green{color:var(--green)}
+.stat-val.red{color:var(--red)}
+.stat-val.blue{color:var(--blue)}
+
+/* ── Toast ── */
+.toast{position:fixed;top:66px;right:20px;padding:10px 18px;border-radius:var(--radius);
+  font-size:13px;font-weight:500;color:#fff;z-index:9999;pointer-events:none;
+  transform:translateX(120%);transition:transform .3s ease;box-shadow:var(--shadow-md)}
+.toast.show{transform:translateX(0)}
+.toast.success{background:var(--green)}
+.toast.error{background:var(--red)}
+.toast.info{background:var(--blue)}
+
+/* ── Loading overlay ── */
+.loading-mask{position:absolute;inset:0;background:rgba(255,255,255,.7);
+  display:none;align-items:center;justify-content:center;z-index:10}
+.loading-mask.show{display:flex}
+.spinner{width:36px;height:36px;border:3px solid var(--border);
+  border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.empty-tip{text-align:center;padding:32px 16px;color:var(--text3)}
+.empty-tip .icon{font-size:32px;margin-bottom:8px}
+.empty-tip p{font-size:13px}
+.divider{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;
+  letter-spacing:.5px;margin:14px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+</style>
+</head>
+<body>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Topbar -->
+<div class="topbar">
+  <span class="topbar-logo">🚛</span>
+  <div>
+    <div class="topbar-title">Beijing Multimodal Transportation Optimization</div>
+    <div class="topbar-sub">Dynamic Multimodal Transportation Optimization · Beijing</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
+    <span class="status-dot"></span>
+    <span class="topbar-time" id="liveTime"></span>
+  </div>
+</div>
+
+<div class="layout">
+
+<!-- ══ Section ══ -->
+<div class="sidebar">
+  <div class="sidebar-tabs">
+    <button class="stab active" onclick="showSTab('config')">⚙️ Settings</button>
+    <button class="stab" onclick="showSTab('nodes')">📍 Nodes</button>
+    <button class="stab" onclick="showSTab('history')">📋 History</button>
+  </div>
+
+  <!-- Settings Tab -->
+  <div class="sidebar-body" id="stab-config">
+    <div class="ctrl-group">
+      <div class="ctrl-label"><span class="dot"></span>Quick Scenario Presets</div>
+      <div class="preset-grid">
+        <button class="preset-btn" onclick="applyPreset('off_peak','normal')">Off-Peak<br>Normal</button>
+        <button class="preset-btn" onclick="applyPreset('mid_peak','congested')">Mid-Peak<br>Congested</button>
+        <button class="preset-btn active" onclick="applyPreset('peak','severe')">Peak<br>Severe ⚠️</button>
+        <button class="preset-btn" onclick="applyPreset('off_peak','severe')">Off-Peak<br>Severe</button>
+        <button class="preset-btn" onclick="applyPreset('mid_peak','normal')">Mid-Peak<br>Normal</button>
+        <button class="preset-btn" onclick="applyPreset('peak','congested')">Peak<br>Congested</button>
+      </div>
+    </div>
+
+    <div class="ctrl-group">
+      <div class="ctrl-label"><span class="dot"></span>Time Period</div>
+      <select id="sel-time" onchange="syncPresetBtns()">
+        <option value="off_peak">Off-Peak (50 km/h base speed)</option>
+        <option value="mid_peak">Mid-Peak (25 km/h base speed)</option>
+        <option value="peak" selected>Peak (5 km/h base speed)</option>
+      </select>
+    </div>
+
+    <div class="ctrl-group">
+      <div class="ctrl-label"><span class="dot"></span>Congestion State</div>
+      <select id="sel-cong" onchange="syncPresetBtns()">
+        <option value="normal">Normal (×1.0)</option>
+        <option value="congested">Congested (×0.6)</option>
+        <option value="severe" selected>Severe (×0.2)</option>
+      </select>
+    </div>
+
+    <div class="ctrl-group">
+      <div class="ctrl-label"><span class="dot" style="background:#ea580c"></span>Drone Max Range</div>
+      <div class="range-wrap">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="range-val" id="range-lbl">15 km</span>
+          <span style="font-size:11px;color:var(--text3)">Affects coverage</span>
+        </div>
+        <input type="range" id="drone-range" min="5" max="20" value="15"
+               oninput="document.getElementById('range-lbl').textContent=this.value+' km'">
+        <div class="range-labels"><span>5km</span><span>20km</span></div>
+      </div>
+    </div>
+
+    <div class="ctrl-group">
+      <div class="ctrl-label"><span class="dot" style="background:#ea580c"></span>Drone Max Payload</div>
+      <div class="range-wrap">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="range-val" id="load-lbl">10 units</span>
+          <span style="font-size:11px;color:var(--text3)">Above this → vehicle</span>
+        </div>
+        <input type="range" id="drone-load" min="3" max="20" value="10"
+               oninput="document.getElementById('load-lbl').textContent=this.value+' units'">
+        <div class="range-labels"><span>3</span><span>20</span></div>
+      </div>
+    </div>
+
+    <div class="divider">How to Use</div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.7">
+      <p>① <strong>Click customer nodes</strong> on the map (multi-select)</p>
+      <p>② Adjust scenario parameters above</p>
+      <p>③ Click <strong>Compute Optimal Route</strong></p>
+      <p>④ View 4-model comparison on the right</p>
+      <br>
+      <p style="color:var(--orange)">🔴 Red dashed = Drone route</p>
+      <p style="color:var(--blue)">🔵 Solid line = Vehicle route</p>
+    </div>
+  </div>
+
+  <!-- Nodes Tab -->
+  <div class="sidebar-body" id="stab-nodes" style="display:none">
+    <div class="divider">Add Custom Node</div>
+    <div style="font-size:12px;color:var(--blue);background:var(--blue-light);
+         border:1px solid #bfdbfe;border-radius:var(--radius-sm);
+         padding:8px 10px;margin-bottom:10px;line-height:1.7">
+      💡 <strong>How to get coordinates?</strong><br>
+      Open Baidu/Google Maps → Right-click target location → Copy coordinates → Paste below
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+      <div style="background:var(--surface2);border:1px solid var(--border);
+           border-radius:var(--radius-sm);padding:7px 9px">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:2px">Latitude (N-S)</div>
+        <div style="font-size:12px;font-weight:600;font-family:monospace;color:var(--text)">39.870 ～ 39.998</div>
+        <div style="font-size:10px;color:var(--text3)">S: Yuquanying ~ N: Beitucheng</div>
+      </div>
+      <div style="background:var(--surface2);border:1px solid var(--border);
+           border-radius:var(--radius-sm);padding:7px 9px">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:2px">Longitude (E-W)</div>
+        <div style="font-size:12px;font-weight:600;font-family:monospace;color:var(--text)">116.288 ～ 116.482</div>
+        <div style="font-size:10px;color:var(--text3)">W: Tiancun ~ E: Sihui</div>
+      </div>
+    </div>
+    <div class="add-node-form">
+      <div>
+        <label>Node Name</label>
+        <input type="text" id="add-name" placeholder="e.g. Haidian Wanliu Client A" style="width:100%">
+      </div>
+      <div class="row2">
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+            <label style="margin:0;font-size:11px">Latitude (lat)</label>
+            <span style="font-size:10px;color:var(--text3);font-family:monospace;background:var(--bg);
+                  padding:1px 5px;border-radius:3px;border:1px solid var(--border)">39.870～39.998</span>
+          </div>
+          <input type="number" id="add-lat" placeholder="e.g. 39.9205"
+                 step="0.0001" min="39.870" max="39.998" oninput="validateCoord()">
+          <div id="fb-lat" style="font-size:11px;min-height:15px;margin-top:3px"></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+            <label style="margin:0;font-size:11px">Longitude (lon)</label>
+            <span style="font-size:10px;color:var(--text3);font-family:monospace;background:var(--bg);
+                  padding:1px 5px;border-radius:3px;border:1px solid var(--border)">116.288～116.482</span>
+          </div>
+          <input type="number" id="add-lon" placeholder="e.g. 116.3812"
+                 step="0.0001" min="116.288" max="116.482" oninput="validateCoord()">
+          <div id="fb-lon" style="font-size:11px;min-height:15px;margin-top:3px"></div>
+        </div>
+      </div>
+      <div id="loc-hint" style="display:none;font-size:12px;padding:7px 9px;
+           border-radius:var(--radius-sm);line-height:1.6"></div>
+      <div>
+        <label>Demand (1-30 units)</label>
+        <input type="number" id="add-demand" placeholder="10" min="1" max="30" value="10"
+               oninput="validateDemand()">
+        <div id="fb-demand" style="font-size:11px;min-height:15px;margin-top:3px;color:var(--text3)">
+          Delivery volume at this node (≤10 → drone eligible)
+        </div>
+      </div>
+      <button class="btn-add" id="btn-add-node" onclick="addNode()" disabled>＋ Add Node</button>
+      <button type="button" onclick="fillExample()"
+              style="width:100%;padding:7px;background:none;border:1px dashed var(--border);
+                     border-radius:var(--radius-sm);color:var(--text2);cursor:pointer;font-size:12px">
+        Fill Example Coordinates (Zhongguancun)
+      </button>
+    </div>
+
+    <div class="divider">Customer Node List <span id="node-count" style="font-weight:400;color:var(--text3)"></span></div>
+    <div class="node-list" id="node-list"></div>
+  </div>
+
+  <!-- History Tab -->
+  <div class="sidebar-body" id="stab-history" style="display:none">
+    <div class="stat-row">
+      <div class="stat-box">
+        <div class="stat-label">Total Queries</div>
+        <div class="stat-val blue" id="stat-total">-</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Avg M4 Savings</div>
+        <div class="stat-val green" id="stat-save">-</div>
+      </div>
+    </div>
+    <div class="divider">Recent Queries</div>
+    <div id="hist-list"></div>
+  </div>
+</div>
+
+<!-- ══ Section ══ -->
+<div class="map-area">
+  <div class="map-toolbar">
+    <div class="map-toolbar-info" id="toolbar-info">
+      Click the 🟢 customer nodes on the map (multi-select)
+    </div>
+    <button class="btn-clear" onclick="clearSelection()">Clear Selection</button>
+    <button class="btn-calc" id="btn-calc" onclick="calcRoute()" disabled>
+      ✈ Compute Optimal Route
+    </button>
+  </div>
+
+  <div class="map-canvas-wrap">
+    <canvas id="mapCanvas"></canvas>
+    <div class="map-hint" id="map-hint">← Adjust scenario parameters on the left, then click nodes to select delivery targets</div>
+    <div class="loading-mask" id="loading"><div class="spinner"></div></div>
+    <div class="map-legend">
+      <div class="leg-row"><span class="leg-dot" style="background:#E74C3C"></span>Distribution Center</div>
+      <div class="leg-row"><span class="leg-dot" style="background:#2563eb"></span>Transfer Hub</div>
+      <div class="leg-row"><span class="leg-dot" style="background:#059669"></span>Customer (Vehicle)</div>
+      <div class="leg-row"><span class="leg-dot" style="background:#ea580c"></span>Customer (Drone)</div>
+      <div class="leg-row"><span class="leg-dot" style="background:#f59e0b;border:2px solid #1d4ed8"></span>Selected</div>
+      <div class="leg-row"><span class="leg-dash" style="border-color:#E74C3C"></span>Drone Route</div>
+      <div class="leg-row"><span class="leg-line" style="background:#2563eb"></span>Vehicle Route</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Section ══ -->
+<div class="result-panel">
+  <div class="result-header">
+    <h3>Route Analysis Result</h3>
+    <p id="result-scenario">Select nodes and compute</p>
+  </div>
+  <div class="result-body" id="result-body">
+    <div class="empty-tip">
+      <div class="icon">📊</div>
+      <p>Select nodes, then click<br>"Compute Optimal Route"</p>
+    </div>
+  </div>
+</div>
+
+</div><!-- layout -->
+
+<script>
+const API = 'http://localhost:5000/api';
+
+// ── State ──────────────────────────────────────────────────────
+let allNodes = [];
+let selectedIds = new Set();
+let lastResult = null;
+let animTick = 0;
+let animHandle = null;
+
+// ── Initialization ────────────────────────────────────────────────────
+async function init() {
+  updateTime();
+  setInterval(updateTime, 1000);
+  await loadNodes();
+  resizeCanvas();
+  window.addEventListener('resize', () => { resizeCanvas(); redraw(); });
+  startAnim();
+  loadHistory();
+}
+
+function updateTime() {
+  document.getElementById('liveTime').textContent = new Date().toLocaleTimeString('en-US');
+}
+
+// ── Load nodes ──────────────────────────────────────────────────
+async function loadNodes() {
+  try {
+    const res = await fetch(`${API}/nodes`);
+    allNodes = await res.json();
+    renderNodeList();
+    redraw();
+  } catch(e) {
+    showToast('Cannot connect to backend. Run: python app.py first', 'error');
+  }
+}
+
+function renderNodeList() {
+  const customers = allNodes.filter(n => n.node_type === 'customer');
+  document.getElementById('node-count').textContent = `(${customers.length} nodes)`;
+  const el = document.getElementById('node-list');
+  el.innerHTML = customers.map(n => `
+    <div class="node-item ${selectedIds.has(n.id)?'selected':''} ${!n.is_active?'disabled':''}"
+         onclick="toggleNodeSelect(${n.id})" id="ni-${n.id}">
+      <span class="node-dot" style="background:${n.id>=100?'#7c3aed':'#059669'}"></span>
+      <div class="node-info">
+        <div class="node-name">${n.name}</div>
+        <div class="node-meta">${n.lat.toFixed(4)}, ${n.lon.toFixed(4)}</div>
+      </div>
+      <span class="node-demand">${n.demand}u</span>
+      ${n.id >= 100 ? `<button class="node-del" onclick="deleteNode(event,${n.id})">✕</button>` : ''}
+    </div>
+  `).join('');
+}
+
+// ── Node selection ──────────────────────────────────────────────────
+function toggleNodeSelect(id) {
+  const node = allNodes.find(n => n.id === id);
+  if (!node || !node.is_active) return;
+  if (selectedIds.has(id)) selectedIds.delete(id);
+  else selectedIds.add(id);
+  updateSelectionUI();
+  redraw();
+}
+
+function updateSelectionUI() {
+  const n = selectedIds.size;
+  const calcBtn = document.getElementById('btn-calc');
+  calcBtn.disabled = n === 0;
+  document.getElementById('toolbar-info').textContent =
+    n === 0 ? 'Click the 🟢 customer nodes on the map (multi-select)'
+            : `Selected ${n} nodes, total demand ${[...selectedIds].reduce((s,id)=>{
+                const nd=allNodes.find(x=>x.id===id); return s+(nd?nd.demand:0);},0)} units`;
+  document.querySelectorAll('.node-item').forEach(el => {
+    const id = parseInt(el.id.replace('ni-',''));
+    el.classList.toggle('selected', selectedIds.has(id));
+  });
+}
+
+function clearSelection() {
+  selectedIds.clear();
+  lastResult = null;
+  updateSelectionUI();
+  redraw();
+  document.getElementById('result-body').innerHTML =
+    '<div class="empty-tip"><div class="icon">📊</div><p>Select nodes, then click<br>"Compute Optimal Route"</p></div>';
+  document.getElementById('result-scenario').textContent = 'Select nodes and compute';
+}
+
+// ── Coordinate validation ──────────────────────────────────────────────────
+const LAT_MIN=39.870,LAT_MAX=39.998,LON_MIN=116.288,LON_MAX=116.482;
+const RING4_V=[[39.998,116.348],[39.999,116.375],[39.998,116.405],[39.995,116.43],[39.985,116.455],[39.97,116.475],[39.955,116.482],[39.935,116.48],[39.915,116.478],[39.9,116.47],[39.885,116.458],[39.875,116.435],[39.87,116.405],[39.87,116.375],[39.875,116.345],[39.885,116.32],[39.9,116.302],[39.915,116.29],[39.935,116.288],[39.95,116.292],[39.965,116.305],[39.98,116.32],[39.992,116.335],[39.998,116.348]];
+function inR4(lat,lon){let inside=false,n=RING4_V.length,j=n-1;for(let i=0;i<n;i++){const[yi,xi]=RING4_V[i],[yj,xj]=RING4_V[j];if((yi>lat)!=(yj>lat)&&lon<(xj-xi)*(lat-yi)/(yj-yi)+xi)inside=!inside;j=i;}return inside;}
+function guessArea(lat,lon){if(lat>39.955&&lon<116.34)return'Haidian District (North)';if(lat>39.93&&lon<116.32)return'Haidian District';if(lat>39.95&&lon>116.42)return'Chaoyang District (North)';if(lat<39.90&&lon>116.40)return'Chaoyang District (South)';if(lat<39.91&&lon<116.37)return'Fengtai District';if(lat>39.93&&lon>116.37&&lon<116.42)return'Dongcheng/Xicheng District';return'Within 4th Ring';}
+
+function setFbCoord(fbId,inpEl,state,msg){
+  const fb=document.getElementById(fbId);
+  if(!fb)return;
+  fb.textContent=msg;
+  fb.style.color=state==='ok'?'var(--green)':state==='err'?'var(--red)':'var(--text3)';
+  if(inpEl){
+    inpEl.style.borderColor=state==='ok'?'var(--green)':state==='err'?'var(--red)':'';
+    inpEl.style.boxShadow=state==='ok'?'0 0 0 2px rgba(5,150,105,.1)':state==='err'?'0 0 0 2px rgba(220,38,38,.1)':'';
+  }
+}
+
+function validateCoord(){
+  const latEl=document.getElementById('add-lat');
+  const lonEl=document.getElementById('add-lon');
+  const hint=document.getElementById('loc-hint');
+  const btn=document.getElementById('btn-add-node');
+  if(!latEl||!lonEl)return;
+  const lat=parseFloat(latEl.value),lon=parseFloat(lonEl.value);
+  let latOk=false,lonOk=false;
+
+  if(!latEl.value){setFbCoord('fb-lat',latEl,'','');}
+  else if(isNaN(lat)){setFbCoord('fb-lat',latEl,'err','Please enter a number');}
+  else if(lat<LAT_MIN){setFbCoord('fb-lat',latEl,'err','Too far south, valid range starts at '+LAT_MIN+' (outside South 4th Ring)');}
+  else if(lat>LAT_MAX){setFbCoord('fb-lat',latEl,'err','Too far north, valid range ends at '+LAT_MAX+' (outside North 4th Ring)');}
+  else{setFbCoord('fb-lat',latEl,'ok','✓ Latitude valid');latOk=true;}
+
+  if(!lonEl.value){setFbCoord('fb-lon',lonEl,'','');}
+  else if(isNaN(lon)){setFbCoord('fb-lon',lonEl,'err','Please enter a number');}
+  else if(lon<LON_MIN){setFbCoord('fb-lon',lonEl,'err','Too far west, valid range starts at '+LON_MIN+' (outside West 4th Ring)');}
+  else if(lon>LON_MAX){setFbCoord('fb-lon',lonEl,'err','Too far east, valid range ends at '+LON_MAX+' (outside East 4th Ring)');}
+  else{setFbCoord('fb-lon',lonEl,'ok','✓ Longitude valid');lonOk=true;}
+
+  if(hint){
+    if(latOk&&lonOk){
+      const ok=inR4(lat,lon);
+      const area=guessArea(lat,lon);
+      hint.style.display='block';
+      hint.style.background=ok?'var(--green-light)':'var(--orange-light)';
+      hint.style.border=ok?'1px solid #6ee7b7':'1px solid #fdba74';
+      hint.style.color=ok?'var(--green)':'var(--orange)';
+      hint.innerHTML=ok
+        ?'✅ Located in <strong>'+area+'</strong>, inside 4th Ring, ready to add'
+        :'⚠️ Near 4th Ring edge, in '+area+', please verify before adding';
+    } else {
+      hint.style.display='none';
+    }
+  }
+  if(btn) btn.disabled=!(latOk&&lonOk);
+}
+
+function validateDemand(){
+  const v=parseInt(document.getElementById('add-demand').value);
+  const fb=document.getElementById('fb-demand');
+  if(!fb)return;
+  if(isNaN(v)||v<1){fb.textContent='Minimum is 1 unit';fb.style.color='var(--red)';}
+  else if(v>30){fb.textContent='Maximum is 30 units (exceeds drone payload)';fb.style.color='var(--red)';}
+  else if(v<=10){fb.textContent='✓ Demand ≤10, drone or vehicle eligible';fb.style.color='var(--green)';}
+  else{fb.textContent='Demand >10, vehicle only';fb.style.color='var(--text2)';}
+}
+
+function fillExample(){
+  document.getElementById('add-name').value='Zhongguancun Client (Demo)';
+  document.getElementById('add-lat').value='39.9825';
+  document.getElementById('add-lon').value='116.3114';
+  document.getElementById('add-demand').value='8';
+  validateCoord();validateDemand();
+}
+
+// ── Add/Delete nodes ─────────────────────────────────────────────
+async function addNode() {
+  const name   = document.getElementById('add-name').value.trim() || 'Custom Node';
+  const lat    = parseFloat(document.getElementById('add-lat').value);
+  const lon    = parseFloat(document.getElementById('add-lon').value);
+  const demand = parseInt(document.getElementById('add-demand').value) || 10;
+
+  if(isNaN(lat)||isNaN(lon)) { showToast('Please enter latitude and longitude', 'error'); return; }
+  if(lat<LAT_MIN||lat>LAT_MAX||lon<LON_MIN||lon>LON_MAX) {
+    showToast(`Coordinates outside 4th Ring（lat ${LAT_MIN}~${LAT_MAX}, lon ${LON_MIN}~${LON_MAX}）`, 'error');
+    return;
+  }
+
+  // Send request
+  let data;
+  try {
+    const res = await fetch(`${API}/nodes/add`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({name, lat, lon, demand})
+    });
+    if (!res.ok) {
+      showToast(`Backend error ${res.status}`, 'error');
+      return;
+    }
+    data = await res.json();
+  } catch(e) {
+    showToast('Network error: cannot connect to backend', 'error');
+    return;
+  }
+
+  // Success, show toast
+  showToast(`✓ Added: ${data.name}`, 'success');
+
+  // Clear form(safe helper, skips missing elements)
+  const safe = (id, fn) => { const el = document.getElementById(id); if (el) fn(el); };
+  safe('add-name',   el => { el.value = ''; el.style.borderColor=''; el.style.boxShadow=''; });
+  safe('add-lat',    el => { el.value = ''; el.style.borderColor=''; el.style.boxShadow=''; });
+  safe('add-lon',    el => { el.value = ''; el.style.borderColor=''; el.style.boxShadow=''; });
+  safe('add-demand', el => el.value = '10');
+  safe('fb-lat',     el => el.textContent = '');
+  safe('fb-lon',     el => el.textContent = '');
+  safe('fb-demand',  el => { el.textContent='Delivery volume at this node (≤10 → drone eligible)'; el.style.color='var(--text3)'; });
+  safe('loc-hint',   el => el.style.display = 'none');
+  safe('btn-add-node', el => el.disabled = true);
+
+  // Reload node list
+  try { await loadNodes(); } catch(e) {}
+}
+
+async function deleteNode(e, id) {
+  e.stopPropagation();
+  if (!confirm('Confirm delete this node?')) return;
+  try {
+    await fetch(`${API}/nodes/${id}/delete`, { method:'POST' });
+    selectedIds.delete(id);
+    showToast('Node deleted', 'info');
+    await loadNodes();
+    updateSelectionUI();
+    redraw();
+  } catch(e) { showToast('Failed to delete', 'error'); }
+}
+
+// ── Compute route ──────────────────────────────────────────────────
+async function calcRoute() {
+  if (selectedIds.size === 0) return;
+  const t  = document.getElementById('sel-time').value;
+  const s  = document.getElementById('sel-cong').value;
+  const dr = parseFloat(document.getElementById('drone-range').value);
+  const dl = parseInt(document.getElementById('drone-load').value);
+
+  document.getElementById('loading').classList.add('show');
+  document.getElementById('btn-calc').disabled = true;
+
+  try {
+    const res = await fetch(`${API}/route`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        selected_nodes: [...selectedIds],
+        time_period: t, congestion: s,
+        drone_range: dr, drone_load: dl
+      })
+    });
+    const data = await res.json();
+    if (data.error) { showToast(data.error, 'error'); return; }
+    lastResult = data;
+    renderResults(data);
+    showToast(`Computed. Best model: ${data.best_model}`, 'success');
+    redraw();
+    loadHistory();
+  } catch(e) {
+    showToast('Computation failed, check backend', 'error');
+  } finally {
+    document.getElementById('loading').classList.remove('show');
+    document.getElementById('btn-calc').disabled = selectedIds.size === 0;
+  }
+}
+
+// ── Render results ──────────────────────────────────────────────────
+function renderResults(data) {
+  const tLabels = {off_peak:'Off-Peak', mid_peak:'Mid-Peak', peak:'Peak'};
+  const sLabels = {normal:'Normal', congested:'Congested', severe:'Severe'};
+  const sc = data.scenario;
+  document.getElementById('result-scenario').textContent =
+    `${tLabels[sc.time_period]} · ${sLabels[sc.congestion]} · Range${sc.drone_range}km`;
+
+  const models = data.models;
+  const costs  = Object.values(models).map(m => m.total_cost);
+  const maxC   = Math.max(...costs);
+  const minC   = Math.min(...costs);
+
+  const mCols  = {M1:'#2563eb', M2:'#ea580c', M3:'#6b7280', M4:'#7c3aed'};
+  const mNames = {M1:'M1 Dynamic Multimodal', M2:'M2 Static Single-Modal', M3:'M3 Nearest-Neighbor', M4:'M4 Drone-Vehicle Hybrid'};
+
+  let html = '<div class="model-cards">';
+  ['M1','M2','M3','M4'].forEach(m => {
+    const d    = models[m];
+    const best = m === data.best_model;
+    const pct  = Math.round(d.total_cost / maxC * 100);
+    const costClass = best ? 'best-cost' : d.total_cost === maxC ? 'bad-cost' : '';
+    html += `
+    <div class="model-card ${best?'best':''}">
+      <div class="model-card-head">
+        <span class="model-name" style="color:${mCols[m]}">${mNames[m]}</span>
+        <span class="model-cost ${costClass}">¥${Math.round(d.total_cost)}</span>
+      </div>
+      <div class="model-meta">
+        <span>🚛 ${d.n_vehicle} vehicles</span>
+        ${d.n_drone>0 ? `<span>✈️ ${d.n_drone} drones</span>` : ''}
+        ${best ? `<span style="color:var(--green);font-weight:600">Save ${Math.round((maxC-d.total_cost)/maxC*100)}%</span>` : ''}
+      </div>
+      <div class="cost-bar-wrap">
+        <div class="cost-bar" style="width:${pct}%;background:${mCols[m]}60"></div>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+
+  // Per-node details
+  html += '<div class="divider">Per-Node Delivery Plan</div>';
+  html += '<div class="node-result-list">';
+  Object.entries(data.per_node).forEach(([nid, info]) => {
+    const node = allNodes.find(n => n.id === parseInt(nid));
+    const name = node ? node.name : `Node ${nid}`;
+    if (info.mode === 'drone') {
+      html += `<div class="nr-item drone">
+        <div class="nr-head">
+          <span class="nr-name">✈️ ${name}</span>
+          <span class="nr-mode drone">Drone</span>
+        </div>
+        <div class="nr-detail">
+          Demand: ${info.demand}u · Cost: ¥${info.cost}<br>
+          Launch: ${info.launch_name || 'H'+info.launch_node} · ${info.dist_km}km
+        </div>
+      </div>`;
+    } else {
+      html += `<div class="nr-item vehicle">
+        <div class="nr-head">
+          <span class="nr-name">🚛 ${name}</span>
+          <span class="nr-mode vehicle">Vehicle</span>
+        </div>
+        <div class="nr-detail">Demand: ${info.demand}u · Included in vehicle route</div>
+      </div>`;
+    }
+  });
+  html += '</div>';
+
+  document.getElementById('result-body').innerHTML = html;
+}
+
+// ── Map rendering ──────────────────────────────────────────────────
+const RING4 = [[39.998,116.348],[39.999,116.375],[39.998,116.405],[39.995,116.43],
+  [39.985,116.455],[39.97,116.475],[39.955,116.482],[39.935,116.48],[39.915,116.478],
+  [39.9,116.47],[39.885,116.458],[39.875,116.435],[39.87,116.405],[39.87,116.375],
+  [39.875,116.345],[39.885,116.32],[39.9,116.302],[39.915,116.29],[39.935,116.288],
+  [39.95,116.292],[39.965,116.305],[39.98,116.32],[39.992,116.335],[39.998,116.348]];
+
+const cvs = document.getElementById('mapCanvas');
+let W=0, H=0;
+
+function resizeCanvas() {
+  const wrap = cvs.parentElement;
+  W = wrap.clientWidth; H = wrap.clientHeight;
+  cvs.width  = W * devicePixelRatio;
+  cvs.height = H * devicePixelRatio;
+  cvs.style.width  = W + 'px';
+  cvs.style.height = H + 'px';
+}
+
+function proj(lat, lon) {
+  const refLat=39.9042, refLon=116.4074;
+  const x = (lon - refLon) * 111.32 * Math.cos(refLat * Math.PI/180);
+  const y = (lat - refLat) * 110.574;
+  const xMin=-16, xMax=17, yMin=-9, yMax=11;
+  return {
+    x: (x - xMin) / (xMax - xMin) * W,
+    y: (1 - (y - yMin) / (yMax - yMin)) * H
+  };
+}
+
+function drawArrow(ctx, x1,y1,x2,y2, col, lw=1.8, dash=[]) {
+  ctx.save();
+  ctx.strokeStyle = col; ctx.lineWidth = lw;
+  ctx.setLineDash(dash);
+  const angle = Math.atan2(y2-y1, x2-x1);
+  const len   = Math.hypot(x2-x1, y2-y1);
+  const aHead = 8;
+  const ex = x2 - aHead * Math.cos(angle);
+  const ey = y2 - aHead * Math.sin(angle);
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(ex,ey); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - aHead*Math.cos(angle-0.35), y2 - aHead*Math.sin(angle-0.35));
+  ctx.lineTo(x2 - aHead*Math.cos(angle+0.35), y2 - aHead*Math.sin(angle+0.35));
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function redraw() {
+  if (!W || !H) return;
+  const ctx = cvs.getContext('2d');
+  const dpr = devicePixelRatio;
+  ctx.clearRect(0, 0, cvs.width, cvs.height);
+  ctx.save(); ctx.scale(dpr, dpr);
+
+  // Background
+  ctx.fillStyle = '#dce8f4'; ctx.fillRect(0,0,W,H);
+
+  // 4th Ring fill & outline
+  const rPts = RING4.map(p => proj(p[0], p[1]));
+  ctx.beginPath(); ctx.moveTo(rPts[0].x, rPts[0].y);
+  rPts.forEach(p => ctx.lineTo(p.x, p.y));
+  ctx.closePath();
+  ctx.fillStyle   = 'rgba(220,235,255,0.9)'; ctx.fill();
+  ctx.strokeStyle = '#95a3b8'; ctx.lineWidth = 1.5; ctx.setLineDash([5,4]); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(150,170,200,0.15)'; ctx.lineWidth = 1;
+  for(let x=0; x<W; x+=W/8){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for(let y=0; y<H; y+=H/6){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+  const depot = allNodes.find(n => n.node_type === 'depot');
+  const hubs  = allNodes.filter(n => n.node_type === 'hub');
+  const custs = allNodes.filter(n => n.node_type === 'customer');
+
+  // Vehicle Route
+  const routeColors = ['#2563eb','#7c3aed','#059669','#ea580c','#dc2626'];
+  if (lastResult) {
+    const m4 = lastResult.models.M4;
+    if (m4 && m4.routes) {
+      m4.routes.forEach((route, k) => {
+        const col = routeColors[k % routeColors.length];
+        const nodes = [0, ...route.nodes, 0];
+        for (let i=0; i<nodes.length-1; i++) {
+          const a = allNodes.find(n=>n.id===nodes[i]);
+          const b = allNodes.find(n=>n.id===nodes[i+1]);
+          if(!a||!b) continue;
+          const pa = proj(a.lat,a.lon), pb = proj(b.lat,b.lon);
+          drawArrow(ctx, pa.x,pa.y, pb.x,pb.y, col, 2.2);
+        }
+      });
+    }
+
+    // Drone Route (animated)
+    if (m4 && m4.drone_details) {
+      m4.drone_details.forEach((d, i) => {
+        const launch = allNodes.find(n=>n.id===d.launch);
+        const cust   = allNodes.find(n=>n.id===d.id);
+        if(!launch||!cust) return;
+        const lp = proj(launch.lat,launch.lon), cp = proj(cust.lat,cust.lon);
+
+        // Dashed baseline
+        ctx.save();
+        ctx.strokeStyle = '#E74C3C'; ctx.lineWidth = 1.3;
+        ctx.setLineDash([4,3]); ctx.globalAlpha = 0.5;
+        ctx.beginPath(); ctx.moveTo(lp.x,lp.y); ctx.lineTo(cp.x,cp.y); ctx.stroke();
+        ctx.restore();
+
+        // Animated dot
+        const t2 = ((animTick + i*13) % 90) / 90;
+        const bx = lp.x + (cp.x-lp.x)*t2;
+        const by = lp.y + (cp.y-lp.y)*t2;
+        ctx.save();
+        ctx.fillStyle = '#E74C3C'; ctx.globalAlpha = 0.9;
+        ctx.beginPath(); ctx.arc(bx,by,4,0,Math.PI*2); ctx.fill();
+        ctx.restore();
+      });
+    }
+  }
+
+  // Customer nodes
+  custs.forEach(c => {
+    const p = proj(c.lat, c.lon);
+    const isSel   = selectedIds.has(c.id);
+    const isDrone = lastResult && lastResult.per_node[c.id]?.mode === 'drone';
+    const isVeh   = lastResult && lastResult.per_node[c.id]?.mode === 'vehicle';
+    const isCustom = c.id >= 100;
+
+    let fill = '#059669';
+    if (isDrone)  fill = '#ea580c';
+    else if (isVeh) fill = '#2563eb';
+    else if (isCustom) fill = '#7c3aed';
+
+    ctx.beginPath(); ctx.arc(p.x,p.y, isSel?8:6, 0, Math.PI*2);
+    ctx.fillStyle = fill; ctx.fill();
+
+    if (isSel) {
+      ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2.5; ctx.stroke();
+      ctx.beginPath(); ctx.arc(p.x,p.y,13,0,Math.PI*2);
+      ctx.strokeStyle='rgba(245,158,11,0.3)'; ctx.lineWidth=2; ctx.stroke();
+    } else {
+      ctx.strokeStyle = 'white'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+
+    // Labels
+    if (isSel || isDrone || isVeh) {
+      ctx.fillStyle = '#1a1d23'; ctx.font = 'bold 10px Arial';
+      ctx.fillText(c.demand+'u', p.x+9, p.y+4);
+    }
+  });
+
+  // Hubs
+  hubs.forEach((h, i) => {
+    const p = proj(h.lat, h.lon);
+    ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(Math.PI/4);
+    ctx.fillStyle = '#2563eb';
+    ctx.fillRect(-7,-7,14,14);
+    ctx.strokeStyle='white'; ctx.lineWidth=1.5;
+    ctx.strokeRect(-7,-7,14,14);
+    ctx.restore();
+    ctx.fillStyle='#1e3a5f'; ctx.font='bold 10px Arial';
+    ctx.fillText('H'+(i+1), p.x+9, p.y+4);
+  });
+
+  // Distribution Center
+  if (depot) {
+    const dp = proj(depot.lat, depot.lon);
+    ctx.fillStyle='#E74C3C'; ctx.font='bold 18px Arial';
+    ctx.fillText('★', dp.x-9, dp.y+7);
+    ctx.fillStyle='#1e3a5f'; ctx.font='bold 11px Arial';
+    ctx.fillText('DC', dp.x+9, dp.y+6);
+    // Pulse ring
+    const pulse = Math.sin(animTick*0.05)*3;
+    ctx.beginPath(); ctx.arc(dp.x,dp.y,16+pulse,0,Math.PI*2);
+    ctx.strokeStyle='rgba(231,76,60,0.2)'; ctx.lineWidth=2; ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function startAnim() {
+  if (animHandle) cancelAnimationFrame(animHandle);
+  function frame() {
+    animTick++;
+    redraw();
+    animHandle = requestAnimationFrame(frame);
+  }
+  animHandle = requestAnimationFrame(frame);
+}
+
+// Click map to select node
+cvs.addEventListener('click', (e) => {
+  const rect = cvs.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const custs = allNodes.filter(n => n.node_type === 'customer' && n.is_active);
+  let found = null, minD = 18;
+  custs.forEach(c => {
+    const p = proj(c.lat, c.lon);
+    const d = Math.hypot(p.x - mx, p.y - my);
+    if (d < minD) { minD = d; found = c; }
+  });
+  if (found) {
+    toggleNodeSelect(found.id);
+    showSTab('config');
+  }
+});
+
+// ── History ──────────────────────────────────────────────────
+async function loadHistory() {
+  try {
+    const [hist, stats] = await Promise.all([
+      fetch(`${API}/history`).then(r=>r.json()),
+      fetch(`${API}/stats`).then(r=>r.json()),
+    ]);
+
+    document.getElementById('stat-total').textContent = stats.total_queries;
+    document.getElementById('stat-save').textContent  = (stats.avg_saving_pct || 0).toFixed(1) + '%';
+
+    const tL={off_peak:'Off-Peak',mid_peak:'Mid-Peak',peak:'Peak'};
+    const sL={normal:'Normal',congested:'Congested',severe:'Severe'};
+    const bL={M1:'badge-m1',M2:'badge-m2',M3:'badge-m2',M4:'badge-m4'};
+
+    document.getElementById('hist-list').innerHTML = hist.length === 0
+      ? '<div class="empty-tip"><div class="icon">📋</div><p>No queries yet</p></div>'
+      : hist.map(h => `
+        <div class="hist-item" onclick="loadHistResult(${h.id})">
+          <div class="hist-head">
+            <span class="hist-scenario">
+              ${tL[h.time_period]||h.time_period} / ${sL[h.congestion]||h.congestion}
+            </span>
+            <span class="hist-time">${(h.queried_at||'').slice(11,16)}</span>
+          </div>
+          <div class="hist-meta">
+            <span>${JSON.parse(h.selected_nodes||'[]').length} nodes</span>
+            <span>range ${h.drone_range}km</span>
+            ${h.best_model ? `<span class="badge ${bL[h.best_model]||'badge-m1'}">${h.best_model}</span>` : ''}
+          </div>
+        </div>`).join('');
+  } catch(e) {}
+}
+
+async function loadHistResult(qid) {
+  try {
+    const d = await fetch(`${API}/history/${qid}`).then(r=>r.json());
+    const q = d.query;
+    const rs = {};
+    d.results.forEach(r => {
+      rs[r.model] = {
+        total_cost: r.total_cost, drone_cost: r.drone_cost||0,
+        vehicle_cost: r.vehicle_cost||0, n_drone: r.n_drone||0, n_vehicle: r.n_vehicle||0
+      };
+    });
+    selectedIds = new Set(JSON.parse(q.selected_nodes));
+    lastResult = {best_model: q.best_model, models: rs, per_node: {}, scenario: q};
+    renderResults(lastResult);
+    updateSelectionUI();
+    redraw();
+    showSTab('config');
+    showToast('History loaded', 'info');
+  } catch(e) { showToast('Failed to load', 'error'); }
+}
+
+// ── Scenario presets ──────────────────────────────────────────────────
+function applyPreset(t, s) {
+  document.getElementById('sel-time').value = t;
+  document.getElementById('sel-cong').value = s;
+  syncPresetBtns();
+}
+
+function syncPresetBtns() {
+  const t = document.getElementById('sel-time').value;
+  const s = document.getElementById('sel-cong').value;
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  const map = {
+    'off_peak-normal':0, 'mid_peak-congested':1, 'peak-severe':2,
+    'off_peak-severe':3, 'mid_peak-normal':4, 'peak-congested':5
+  };
+  const idx = map[`${t}-${s}`];
+  if (idx !== undefined) {
+    document.querySelectorAll('.preset-btn')[idx].classList.add('active');
+  }
+}
+
+// ── Tab switch ──────────────────────────────────────────────────
+function showSTab(name) {
+  ['config','nodes','history'].forEach(t => {
+    document.getElementById(`stab-${t}`).style.display = t===name ? 'block' : 'none';
+  });
+  document.querySelectorAll('.stab').forEach((b,i) => {
+    b.classList.toggle('active', ['config','nodes','history'][i] === name);
+  });
+  if (name === 'history') loadHistory();
+  if (name === 'nodes') renderNodeList();
+}
+
+// ── Toast ──────────────────────────────────────────────────────
+function showToast(msg, type='info') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast ${type} show`;
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+init();
+</script>
+</body>
+</html>
