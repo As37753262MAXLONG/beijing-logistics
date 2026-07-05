@@ -2,6 +2,8 @@
 
 A Flask-based web application for dynamic multimodal logistics optimization
 in Beijing's urban area, integrating vehicle routing with drone delivery.
+VIDEO LINK: https://drive.google.com/file/d/1QIv7wMaVDzMNbi0BtahdAqHQLGj1T5Iw/view?usp=sharing
+
 
 ## First-Time Setup
 
